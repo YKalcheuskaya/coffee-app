@@ -7,7 +7,7 @@ RUN mvn --batch-mode --quiet -DskipTests dependency:go-offline
 COPY src src
 RUN mvn --batch-mode --quiet -DskipTests package
 
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 COPY --from=build /workspace/target/coffee-app-0.0.1-SNAPSHOT.jar app.jar
