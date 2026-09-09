@@ -62,4 +62,32 @@ Order items intentionally store `coffeeId`, name, and unit price as historical s
 
 ## Data ownership
 
+```mermaid
+erDiagram
+    COFFEE {
+        bigint id PK
+        varchar name
+        varchar normalized_name UK
+        decimal unit_price
+        integer available_quantity
+    }
+    CUSTOMER_ORDER {
+        bigint id PK
+        varchar status
+        timestamp created_at
+        varchar currency
+        decimal total_amount
+    }
+    ORDER_ITEM {
+        bigint id PK
+        bigint order_id FK
+        bigint coffee_id
+        varchar coffee_name
+        decimal unit_price
+        integer quantity
+        decimal line_total
+    }
+    CUSTOMER_ORDER ||--|{ ORDER_ITEM : contains
+```
+
 Flyway owns schema evolution. JPA validates the resulting schema rather than generating it. Production configuration takes database connection values from `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`; the test profile uses an isolated in-memory H2 database with the documented H2 `SA` account only for tests.

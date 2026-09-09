@@ -14,10 +14,11 @@ flowchart BT
 | Layer | Scope | Examples | Runtime expectation |
 | --- | --- | --- | --- |
 | Unit | One class with mocked collaborators | Duplicate lines, insufficient inventory, snapshots, single cancellation | Fast and deterministic |
-| MVC slice | Controller and validation/error boundary | Invalid JSON payloads and domain-exception mapping | No database |
+| MVC slice | Controller and validation/error boundary | Create location, replacement mapping, invalid JSON payloads, and domain-exception mapping | No database |
 | JPA slice | Repository and Flyway-backed schema | Seed data and deterministic lock-query ordering | H2 in PostgreSQL compatibility mode |
 | HTTP integration | Application through `MockMvc` | Catalog CRUD, order placement, rollback, snapshots, cancel, delete guard | In-memory H2 test profile |
-| Acceptance | Running server plus real PostgreSQL | Flyway seed data served through HTTP | Testcontainers / Docker |
+| Black-box HTTP | Running embedded application exercised with REST Assured | Create → update → order → retrieve → cancel → delete | In-memory H2 test profile |
+| Acceptance | Running server plus real PostgreSQL | Flyway seed data and concurrent last-item ordering through HTTP | Testcontainers / Docker |
 
 ## Primary scenarios
 
@@ -27,6 +28,8 @@ flowchart BT
 - Duplicate coffee-line rejection before inventory is locked or an order is written.
 - One-time cancellation, inventory restoration, and deletion allowed only after the order is cancelled.
 - Generated OpenAPI and Swagger UI availability.
+- A full REST Assured HTTP workflow from catalog creation through deletion after cancellation.
+- A PostgreSQL-only concurrent-order check: exactly one request may purchase the final available item.
 
 ## Running tests
 
