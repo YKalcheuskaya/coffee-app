@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: coffee_app
+      POSTGRES_USER: ${POSTGRES_USERNAME:-coffee_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or the shell}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  coffee-app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/coffee_app
+      DB_USERNAME: ${POSTGRES_USERNAME:-coffee_app}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or the shell}
+      APP_PORT: 8080
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
+volumes:
+  postgres-data:

@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+target
+out
+.env
+.env.*
+!.env.example
+docs

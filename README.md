@@ -27,9 +27,19 @@ The application starts on `http://localhost:8080` by default. `.env.example` is 
 
 Catalog write endpoints are intentionally unauthenticated in this local portfolio scope. Authentication, authorization, and audit trails are future hardening work, not current production claims.
 
-## Planned documentation
+## Run with Docker Compose
 
-- Architecture and data-flow diagrams
-- Testing strategy and test pyramid
-- Product roadmap
-- Generated OpenAPI contract and Swagger UI
+Copy `.env.example` to a local, Git-ignored `.env` file and replace both password placeholders. Then run:
+
+```bash
+docker compose up --build
+```
+
+The API is available at `http://localhost:8080`; PostgreSQL data is retained in the local `postgres-data` Docker volume. Stop the stack with `docker compose down`.
+
+## Project documentation
+
+- [Architecture](docs/architecture.md)
+- [Testing strategy and test plan](docs/testing-strategy.md)
+- [Product and technical roadmap](docs/roadmap.md)
+- Generated API contract at `/v3/api-docs` and Swagger UI at `/swagger-ui/index.html` while the app is running
