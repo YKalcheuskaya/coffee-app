@@ -1,7 +1,12 @@
 package com.ykalcheu.coffee.app.order.api;
 
 import com.ykalcheu.coffee.app.order.application.OrderService;
+import com.ykalcheu.coffee.app.shared.error.ApiError;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +33,12 @@ public class OrderController {
 
     @PostMapping
     @Operation(summary = "Place an order")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Order placed"),
+            @ApiResponse(responseCode = "400", description = "Request validation failed", content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Coffee does not exist", content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "409", description = "Duplicate line or insufficient inventory", content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
     public ResponseEntity<OrderResponse> placeOrder(@Valid @RequestBody PlaceOrderRequest request) {
         OrderResponse order = orderService.place(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -39,12 +50,21 @@ public class OrderController {
 
     @GetMapping("/{orderId}")
     @Operation(summary = "Retrieve an order")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Order returned"),
+            @ApiResponse(responseCode = "404", description = "Order does not exist", content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
     public OrderResponse getOrder(@PathVariable long orderId) {
         return orderService.findById(orderId);
     }
 
     @PostMapping("/{orderId}/cancel")
     @Operation(summary = "Cancel a placed order and restore inventory")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Order cancelled"),
+            @ApiResponse(responseCode = "404", description = "Order does not exist", content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "409", description = "Order is already cancelled", content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
     public OrderResponse cancelOrder(@PathVariable long orderId) {
         return orderService.cancel(orderId);
     }

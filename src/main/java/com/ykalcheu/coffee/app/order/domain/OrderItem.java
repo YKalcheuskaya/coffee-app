@@ -45,6 +45,7 @@ public class OrderItem {
     public static OrderItem from(Coffee coffee, int quantity, CoffeeOrder order) {
         OrderItem item = new OrderItem();
         item.order = order;
+        // Copy catalog data into the order so later catalog changes do not rewrite purchase history.
         item.coffeeId = coffee.getId();
         item.coffeeName = coffee.getName();
         item.unitPrice = coffee.getUnitPrice();

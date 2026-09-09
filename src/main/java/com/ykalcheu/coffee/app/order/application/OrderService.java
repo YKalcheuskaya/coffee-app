@@ -71,6 +71,7 @@ public class OrderService {
 
     @Transactional
     public OrderResponse cancel(long orderId) {
+        // The order lock prevents two cancellation requests from restoring the same inventory twice.
         CoffeeOrder order = orderRepository.findByIdWithItemsForUpdate(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
         if (order.getStatus() == OrderStatus.CANCELLED) {

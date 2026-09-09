@@ -98,7 +98,10 @@ class CoffeeControllerTest {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.info.title").value("Coffee App API"))
-                .andExpect(jsonPath("$.paths['/api/coffees']").exists());
+                .andExpect(jsonPath("$.paths['/api/coffees']").exists())
+                .andExpect(jsonPath("$.paths['/api/coffees'].post.responses['409']").exists())
+                .andExpect(jsonPath("$.paths['/api/orders'].post.responses['409']").exists())
+                .andExpect(jsonPath("$.components.schemas.ApiError").exists());
 
         mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk());
