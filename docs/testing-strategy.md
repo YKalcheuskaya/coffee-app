@@ -37,7 +37,7 @@ flowchart BT
 mvn verify
 ```
 
-The default test profile is self-contained and uses H2 only as an isolated test database. The PostgreSQL acceptance test is configured to skip when Docker is unavailable, so local verification remains useful without a container runtime. In an environment with Docker, the same test runs against `postgres:16-alpine`; CI should provide Docker so that this test is executed rather than skipped.
+The default test profile is self-contained and uses H2 for its fast layers. When Docker is available, `mvn verify` also runs the PostgreSQL/Testcontainers acceptance suite against `postgres:16-alpine`; the latest local Docker-enabled verification completed all 31 tests without skips. When Docker is unavailable, only that acceptance class is intentionally skipped so the remaining local verification remains useful. The GitHub Actions workflow runs `mvn verify`; its remote execution is intentionally deferred until a repository remote is approved and configured.
 
 ## Test data and secrets
 

@@ -16,9 +16,11 @@ Transactional Coffee Ordering API built with Java 17 and Spring Boot.
 3. Retrieve the immutable order snapshots.
 4. Cancel the order to restore inventory exactly once, then delete the no-longer-active catalog item if needed.
 
-## Current status
+## Scope and behavior
 
-Coffee catalog CRUD is available: create, list, retrieve, replace, and delete catalog items. Orders can be placed, retrieved, and cancelled. Order placement locks inventory rows in a consistent order, writes immutable item snapshots, and rolls back the entire operation when a requested item is invalid or unavailable. Cancelling a placed order restores inventory once; coffee with an active order cannot be deleted. PostgreSQL schema creation and seed data are managed by Flyway; generated OpenAPI and Swagger UI describe the running endpoints. Docker delivery and the remaining verification layers will be added through separate verified commits.
+Coffee catalog CRUD is available: create, list, retrieve, replace, and delete catalog items. Orders can be placed, retrieved, and cancelled. Order placement locks inventory rows in a consistent order, writes immutable item snapshots, and rolls back the entire operation when a requested item is invalid or unavailable. Cancelling a placed order restores inventory once; coffee with an active order cannot be deleted.
+
+Flyway manages PostgreSQL schema creation and seed data. Generated OpenAPI and Swagger UI describe the running endpoints. The repository includes Docker Compose, Java 17 CI verification, and a layered test suite that exercises both H2 and PostgreSQL through Testcontainers.
 
 ## Prerequisites
 
@@ -31,15 +33,13 @@ Coffee catalog CRUD is available: create, list, retrieve, replace, and delete ca
 mvn verify
 ```
 
-`mvn verify` runs against an isolated H2 test profile. To run the application against PostgreSQL, export `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` using values derived from `.env.example`, then run:
+`mvn verify` always runs the fast H2-backed layers. When Docker is available, it also runs the PostgreSQL/Testcontainers acceptance tests. To run the application directly against PostgreSQL, export `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` using values derived from `.env.example`, then run:
 
 ```bash
 mvn spring-boot:run
 ```
 
-The application starts on `http://localhost:8080` by default. `.env.example` is a placeholder-only template; Spring Boot does not load `.env` files automatically. When the application is running, open Swagger UI at `http://localhost:8080/swagger-ui/index.html`.
-
-Catalog write endpoints are intentionally unauthenticated in this local portfolio scope. Authentication, authorization, and audit trails are future hardening work, not current production claims.
+The application starts on `http://localhost:8080` by default. `.env.example` is a placeholder-only template; Spring Boot does not load `.env` files automatically. When the application is running, open [Swagger UI](http://localhost:8080/swagger-ui/index.html) or the generated [OpenAPI document](http://localhost:8080/v3/api-docs).
 
 ## Run with Docker Compose
 
@@ -50,6 +50,20 @@ docker compose up --build
 ```
 
 The API is available at `http://localhost:8080`; PostgreSQL data is retained in the local `postgres-data` Docker volume. Stop the stack with `docker compose down`.
+
+## Try the workflow
+
+After starting the application, retrieve the Flyway-seeded catalog:
+
+```bash
+curl http://localhost:8080/api/coffees
+```
+
+Use Swagger UI to create or replace a catalog item, place an order, retrieve its immutable snapshots, cancel it, and then delete the now-inactive catalog item. Swagger UI is the canonical endpoint reference; this README intentionally does not duplicate it.
+
+## Local-scope boundary
+
+Catalog write endpoints are unauthenticated in this deliberately bounded portfolio project. Authentication, authorization, audit trails, operational monitoring, and deployment hardening are documented as future work and are not current production claims.
 
 ## Project documentation
 
