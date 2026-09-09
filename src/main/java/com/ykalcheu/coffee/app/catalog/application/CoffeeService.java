@@ -4,6 +4,7 @@ import com.ykalcheu.coffee.app.catalog.api.CoffeeResponse;
 import com.ykalcheu.coffee.app.catalog.api.CreateCoffeeRequest;
 import com.ykalcheu.coffee.app.catalog.api.UpdateCoffeeRequest;
 import com.ykalcheu.coffee.app.catalog.domain.Coffee;
+import com.ykalcheu.coffee.app.catalog.domain.CoffeeHasActiveOrdersException;
 import com.ykalcheu.coffee.app.catalog.domain.CoffeeNameAlreadyExistsException;
 import com.ykalcheu.coffee.app.catalog.domain.CoffeeNotFoundException;
 import com.ykalcheu.coffee.app.catalog.persistence.CoffeeRepository;
@@ -18,9 +19,11 @@ import java.util.List;
 public class CoffeeService {
 
     private final CoffeeRepository coffeeRepository;
+    private final ActiveOrderChecker activeOrderChecker;
 
-    public CoffeeService(CoffeeRepository coffeeRepository) {
+    public CoffeeService(CoffeeRepository coffeeRepository, ActiveOrderChecker activeOrderChecker) {
         this.coffeeRepository = coffeeRepository;
+        this.activeOrderChecker = activeOrderChecker;
     }
 
     public List<CoffeeResponse> findAll() {
@@ -55,6 +58,9 @@ public class CoffeeService {
     public void delete(long coffeeId) {
         Coffee coffee = coffeeRepository.findByIdForUpdate(coffeeId)
                 .orElseThrow(() -> new CoffeeNotFoundException(coffeeId));
+        if (activeOrderChecker.hasActiveOrdersForCoffee(coffeeId)) {
+            throw new CoffeeHasActiveOrdersException(coffeeId);
+        }
         coffeeRepository.delete(coffee);
     }
 

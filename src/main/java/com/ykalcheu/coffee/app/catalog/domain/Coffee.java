@@ -80,6 +80,14 @@ public class Coffee {
         return availableQuantity;
     }
 
+    public void decreaseInventory(int quantity) {
+        availableQuantity -= quantity;
+    }
+
+    public void increaseInventory(int quantity) {
+        availableQuantity += quantity;
+    }
+
     private void apply(String name, String origin, String roastLevel, BigDecimal unitPrice, int availableQuantity) {
         this.name = name.trim();
         this.normalizedName = normalizeName(name);

@@ -4,7 +4,7 @@ Transactional Coffee Ordering API built with Java 17 and Spring Boot.
 
 ## Current status
 
-Coffee catalog CRUD is available: create, list, retrieve, replace, and delete catalog items. PostgreSQL schema creation and seed data are managed by Flyway; generated OpenAPI and Swagger UI describe the running endpoints. Transactional ordering, cancellation, Docker delivery, and the remaining verification layers will be added through separate verified commits.
+Coffee catalog CRUD is available: create, list, retrieve, replace, and delete catalog items. Orders can be placed, retrieved, and cancelled. Order placement locks inventory rows in a consistent order, writes immutable item snapshots, and rolls back the entire operation when a requested item is invalid or unavailable. Cancelling a placed order restores inventory once; coffee with an active order cannot be deleted. PostgreSQL schema creation and seed data are managed by Flyway; generated OpenAPI and Swagger UI describe the running endpoints. Docker delivery and the remaining verification layers will be added through separate verified commits.
 
 ## Prerequisites
 
