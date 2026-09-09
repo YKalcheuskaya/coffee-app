@@ -14,6 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Implements catalog use cases and keeps catalog mutations compatible with inventory transactions.
+ * A coffee cannot be deleted while a placed order still references it.
+ */
 @Service
 @Transactional(readOnly = true)
 public class CoffeeService {

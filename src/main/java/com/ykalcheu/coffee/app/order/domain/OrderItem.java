@@ -12,6 +12,10 @@ import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
 
+/**
+ * Historical order line that snapshots coffee name and unit price at purchase time.
+ * The stored coffee identifier is intentionally not a foreign key to the live catalog.
+ */
 @Entity
 @Table(name = "order_item")
 public class OrderItem {

@@ -16,6 +16,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Order aggregate that preserves the commercial record after the live catalog changes.
+ * Its only lifecycle transition is from {@link OrderStatus#PLACED} to {@link OrderStatus#CANCELLED}.
+ */
 @Entity
 @Table(name = "customer_order")
 public class CoffeeOrder {

@@ -5,6 +5,9 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Clock;
 
+/**
+ * Supplies an injectable UTC clock so time-dependent order creation stays deterministic in tests.
+ */
 @Configuration
 public class ClockConfiguration {
 

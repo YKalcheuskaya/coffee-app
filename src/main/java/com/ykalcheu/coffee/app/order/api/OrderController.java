@@ -20,6 +20,10 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 
+/**
+ * HTTP boundary for order placement, retrieval, and cancellation.
+ * Orders are lifecycle records, so the API intentionally has no generic update or delete endpoint.
+ */
 @RestController
 @RequestMapping("/api/orders")
 @Tag(name = "Orders", description = "Place, retrieve, and cancel transactional coffee orders.")

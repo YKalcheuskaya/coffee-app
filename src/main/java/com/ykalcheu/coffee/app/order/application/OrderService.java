@@ -25,6 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Coordinates transactional order lifecycle rules: inventory reservation, immutable snapshots, and one-time restocking.
+ * It owns the lock ordering required for concurrent inventory mutations.
+ */
 @Service
 public class OrderService {
 

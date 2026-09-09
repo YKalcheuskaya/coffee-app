@@ -11,6 +11,9 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.Optional;
 
+/**
+ * Persists orders, supplies the catalog's active-order policy, and loads the order lock used by cancellation.
+ */
 public interface OrderRepository extends JpaRepository<CoffeeOrder, Long>, ActiveOrderChecker {
 
     boolean existsByItemsCoffeeIdAndStatus(long coffeeId, OrderStatus status);

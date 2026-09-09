@@ -11,6 +11,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Locale;
 
+/**
+ * Mutable live-catalog record and source of truth for currently available inventory.
+ * A normalized name is stored separately so name uniqueness is case-insensitive and whitespace-stable.
+ */
 @Entity
 @Table(name = "coffee")
 public class Coffee {

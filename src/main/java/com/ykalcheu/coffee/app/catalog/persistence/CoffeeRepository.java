@@ -10,6 +10,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Persists catalog records and exposes the pessimistic-lock queries used before inventory mutations.
+ * Locking remains meaningful only inside the service-layer transaction that calls these methods.
+ */
 public interface CoffeeRepository extends JpaRepository<Coffee, Long> {
 
     boolean existsByNormalizedName(String normalizedName);

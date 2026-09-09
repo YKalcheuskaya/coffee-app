@@ -4,6 +4,9 @@ import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Defines the application-wide metadata for the generated OpenAPI document and Swagger UI.
+ */
 @Configuration
 @OpenAPIDefinition(
         info = @Info(

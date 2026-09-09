@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Translates validation and domain failures into one stable public error contract.
+ */
 @RestControllerAdvice
 class ApiExceptionHandler {
 

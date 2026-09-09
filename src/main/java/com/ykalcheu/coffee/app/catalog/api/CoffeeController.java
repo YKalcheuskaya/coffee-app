@@ -23,6 +23,10 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.List;
 
+/**
+ * HTTP boundary for the mutable coffee catalog.
+ * Business rules and transaction handling remain in {@link CoffeeService}.
+ */
 @RestController
 @RequestMapping("/api/coffees")
 @Tag(name = "Coffee catalog", description = "Create, read, update, and delete coffee catalog items.")
