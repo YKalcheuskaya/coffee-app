@@ -4,7 +4,7 @@ Transactional Coffee Ordering API built with Java 17 and Spring Boot.
 
 ## Current status
 
-This repository contains the first implementation milestone: a runnable application foundation. Catalog CRUD, ordering, persistence, OpenAPI documentation, and layered verification will be added through small, verified commits.
+Coffee catalog CRUD is available: create, list, retrieve, replace, and delete catalog items. PostgreSQL schema creation and seed data are managed by Flyway; generated OpenAPI and Swagger UI describe the running endpoints. Transactional ordering, cancellation, Docker delivery, and the remaining verification layers will be added through separate verified commits.
 
 ## Prerequisites
 
@@ -14,11 +14,18 @@ This repository contains the first implementation milestone: a runnable applicat
 ## Run and verify
 
 ```bash
-mvn spring-boot:run
 mvn verify
 ```
 
-The application starts on `http://localhost:8080` by default. Database configuration in `.env.example` is a placeholder-only template for a later persistence milestone; the initial application does not connect to a database.
+`mvn verify` runs against an isolated H2 test profile. To run the application against PostgreSQL, export `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` using values derived from `.env.example`, then run:
+
+```bash
+mvn spring-boot:run
+```
+
+The application starts on `http://localhost:8080` by default. `.env.example` is a placeholder-only template; Spring Boot does not load `.env` files automatically. When the application is running, open Swagger UI at `http://localhost:8080/swagger-ui/index.html`.
+
+Catalog write endpoints are intentionally unauthenticated in this local portfolio scope. Authentication, authorization, and audit trails are future hardening work, not current production claims.
 
 ## Planned documentation
 
