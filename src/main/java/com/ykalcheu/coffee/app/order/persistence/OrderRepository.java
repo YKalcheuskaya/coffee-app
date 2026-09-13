@@ -27,7 +27,8 @@ public interface OrderRepository extends JpaRepository<CoffeeOrder, Long>, Activ
     @EntityGraph(attributePaths = "items")
     Optional<CoffeeOrder> findById(Long orderId);
 
+    // Lock the root before loading items; collection fetch joins can trigger follow-on locking.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select distinct coffeeOrder from CoffeeOrder coffeeOrder left join fetch coffeeOrder.items where coffeeOrder.id = :orderId")
+    @Query("select coffeeOrder from CoffeeOrder coffeeOrder where coffeeOrder.id = :orderId")
     Optional<CoffeeOrder> findByIdWithItemsForUpdate(long orderId);
 }

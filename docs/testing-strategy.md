@@ -18,7 +18,7 @@ flowchart BT
 | JPA slice | Repository and Flyway-backed schema | Seed data and deterministic lock-query ordering | H2 in PostgreSQL compatibility mode |
 | HTTP integration | Application through `MockMvc` | Catalog CRUD, order placement, rollback, snapshots, cancel, delete guard | In-memory H2 test profile |
 | Black-box HTTP | Running embedded application exercised with REST Assured | Create → update → order → retrieve → cancel → delete | In-memory H2 test profile |
-| Acceptance | Running server plus real PostgreSQL | Flyway seed data and concurrent last-item ordering through HTTP | Testcontainers / Docker |
+| Acceptance | Running server plus real PostgreSQL | Flyway seed data, concurrent last-item ordering, and concurrent cancellation through HTTP | Testcontainers / Docker |
 
 ## Primary scenarios
 
@@ -30,6 +30,7 @@ flowchart BT
 - Generated OpenAPI and Swagger UI availability.
 - A full REST Assured HTTP workflow from catalog creation through deletion after cancellation.
 - A PostgreSQL-only concurrent-order check: exactly one request may purchase the final available item.
+- A PostgreSQL-only concurrent-cancellation check: two overlapping requests produce one success and one `ORDER_ALREADY_CANCELLED` conflict, with stock restored exactly once.
 
 ## Running tests
 
@@ -42,3 +43,9 @@ The default test profile is self-contained and uses H2 for its fast layers. When
 ## Test data and secrets
 
 The H2 test profile uses `SA` with an empty password because the database is ephemeral and exists only during test execution. It is not a deployable account and no production credential is committed. Production database values are supplied by environment variables.
+
+## Concurrent cancellation regression
+
+`shouldRestoreInventoryExactlyOnceWhenCancellationsOverlap` holds the order row in a separate database transaction, submits two HTTP cancellation requests, and waits for both requests to block on that row before releasing it. The database observation loop, competing cancellation HTTP calls, and worker completion have bounded waits. The final inventory and order status are checked through SQL as an independent oracle; the losing HTTP response must contain `ORDER_ALREADY_CANCELLED`.
+
+On 2026-09-11 this regression failed against the prior query: both requests returned 200 and inventory became 2 instead of 1. The collection fetch join with `DISTINCT` caused Hibernate follow-on locking, which loaded order state before acquiring the lock. The corrected query locks only the order row first; items are loaded afterward inside the existing service transaction. The same regression then passed against PostgreSQL. This case demonstrates why an H2 test or a lock annotation alone cannot establish database concurrency behavior.
