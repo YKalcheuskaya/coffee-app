@@ -55,7 +55,7 @@ The test count is not a release criterion by itself. Each row identifies the bus
 mvn verify
 ```
 
-`mvn test` runs the fast H2-backed suite. `mvn verify` also runs the required PostgreSQL/Testcontainers acceptance suite against `postgres:16-alpine`, creates a JaCoCo HTML report at `target/site/jacoco/index.html`, and fails when Docker is unavailable. This makes a green full verification evidence that every required test layer executed. The current local verification completed 39 tests without failures, errors, or skips. GitHub Actions runs the same clean verification and retains Surefire, Failsafe, and JaCoCo reports; its remote execution remains unverified until a repository remote is approved and configured.
+`mvn test` runs the fast H2-backed suite. `mvn verify` also runs the required PostgreSQL/Testcontainers acceptance suite against `postgres:16-alpine`, creates a JaCoCo HTML report at `target/site/jacoco/index.html`, and fails when Docker is unavailable. This makes a green full verification evidence that every required test layer executed. The current local verification completed 42 tests without failures, errors, or skips. GitHub Actions runs the same clean verification and retains Surefire, Failsafe, and JaCoCo reports; its remote execution remains unverified until a repository remote is approved and configured.
 
 ## Test data and secrets
 
