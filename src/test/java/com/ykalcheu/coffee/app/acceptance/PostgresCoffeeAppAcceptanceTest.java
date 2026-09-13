@@ -26,7 +26,7 @@ import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class PostgresCoffeeAppAcceptanceTest {
 
@@ -163,6 +163,52 @@ class PostgresCoffeeAppAcceptanceTest {
         }
     }
 
+    @Test
+    void shouldReturnConflictWhenConcurrentCreateLosesNormalizedNameRace() throws Exception {
+        String normalizedName = "concurrent duplicate coffee";
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try (Connection blocker = dataSource.getConnection()) {
+            blocker.setAutoCommit(false);
+            try (var statement = blocker.prepareStatement(
+                    "insert into coffee (name, normalized_name, origin, roast_level, unit_price, available_quantity) "
+                            + "values (?, ?, ?, ?, ?, ?)")) {
+                statement.setString(1, "Concurrent Duplicate Coffee");
+                statement.setString(2, normalizedName);
+                statement.setString(3, "Brazil");
+                statement.setString(4, "DARK");
+                statement.setBigDecimal(5, new java.math.BigDecimal("4.00"));
+                statement.setInt(6, 1);
+                statement.executeUpdate();
+            }
+
+            Future<Response> competingRequest = executor.submit(() -> given().port(port)
+                    .contentType(ContentType.JSON)
+                    .body(Map.of("name", " Concurrent Duplicate Coffee ", "origin", "Colombia",
+                            "roastLevel", "MEDIUM", "unitPrice", 4, "availableQuantity", 2))
+                    .post("/api/coffees"));
+            awaitWaitingCoffeeInsert();
+            blocker.commit();
+
+            Response response = competingRequest.get(20, TimeUnit.SECONDS);
+            assertThat(response.statusCode()).isEqualTo(409);
+            assertThat(response.jsonPath().getString("code")).isEqualTo("COFFEE_NAME_ALREADY_EXISTS");
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(25, TimeUnit.SECONDS))
+                    .as("duplicate-create worker terminates within its HTTP timeout").isTrue();
+        }
+
+        try (Connection observer = dataSource.getConnection();
+             var statement = observer.prepareStatement(
+                     "select count(*) from coffee where normalized_name = ?")) {
+            statement.setString(1, normalizedName);
+            try (var rows = statement.executeQuery()) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(1);
+            }
+        }
+    }
+
     private Response cancelOrder(long orderId) {
         return given().port(port)
                 .config(io.restassured.RestAssured.config().httpClient(
@@ -192,6 +238,28 @@ class PostgresCoffeeAppAcceptanceTest {
             }
         }
         assertThat(waiting).as("both cancellation requests must overlap at the order lock").isEqualTo(2);
+    }
+
+    private void awaitWaitingCoffeeInsert() throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        int waiting = 0;
+        try (Connection observer = dataSource.getConnection();
+             var statement = observer.prepareStatement(
+                     "select count(*) from pg_stat_activity where datname = current_database() "
+                             + "and wait_event_type = 'Lock' and query like '%insert into coffee%'")) {
+            statement.setQueryTimeout(3);
+            while (System.nanoTime() < deadline) {
+                try (var rows = statement.executeQuery()) {
+                    rows.next();
+                    waiting = rows.getInt(1);
+                }
+                if (waiting == 1) {
+                    return;
+                }
+                Thread.sleep(25);
+            }
+        }
+        assertThat(waiting).as("competing create request must reach the unique-index lock").isEqualTo(1);
     }
 
     private int placeOneItemOrder(long coffeeId) {

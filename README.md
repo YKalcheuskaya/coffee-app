@@ -33,7 +33,7 @@ Flyway manages PostgreSQL schema creation and seed data. Generated OpenAPI and S
 mvn verify
 ```
 
-`mvn verify` always runs the fast H2-backed layers. When Docker is available, it also runs the PostgreSQL/Testcontainers acceptance tests. To run the application directly against PostgreSQL, export `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` using values derived from `.env.example`, then run:
+`mvn test` runs the fast H2-backed suite. `mvn verify` runs the complete suite, including required PostgreSQL/Testcontainers acceptance tests, and writes a JaCoCo HTML report to `target/site/jacoco/index.html`; it requires Docker. To run the application directly against PostgreSQL, export `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` using values derived from `.env.example`, then run:
 
 ```bash
 mvn spring-boot:run

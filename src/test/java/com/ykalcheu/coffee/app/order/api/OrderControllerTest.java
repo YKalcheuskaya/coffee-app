@@ -10,6 +10,10 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -25,6 +29,9 @@ class OrderControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Test
     void shouldPlaceAndRetrieveOrderWithInventorySnapshot() throws Exception {
@@ -81,6 +88,87 @@ class OrderControllerTest {
     }
 
     @Test
+    void shouldRejectMalformedAndInvalidOrderRequestsWithoutChangingInventory() throws Exception {
+        List<String> invalidRequests = List.of(
+                "{}",
+                "{\"items\":null}",
+                "{\"items\":[]}",
+                "{\"items\":[null]}",
+                "{\"items\":[{}]}",
+                "{\"items\":[{\"coffeeId\":1,\"quantity\":0}]}",
+                "{\"items\":[{\"coffeeId\":1,\"quantity\":-1}]}",
+                "{\"items\":[{\"coffeeId\":1,\"quantity\":1.5}]}",
+                "{\"items\":[{\"coffeeId\":1.5,\"quantity\":1}]}",
+                "{\"items\":[{\"coffeeId\":1,\"quantity\":\"1\"}]}",
+                "{\"items\":[{\"coffeeId\":1,\"quantity\":2147483648}]}",
+                "{invalid"
+        );
+
+        for (String request : invalidRequests) {
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(request))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        }
+
+        mockMvc.perform(get("/api/coffees/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableQuantity").value(24));
+    }
+
+    @Test
+    void shouldRejectAnOrderTotalThatExceedsDatabasePrecisionWithoutChangingInventory() throws Exception {
+        String firstCoffee = createCoffee("Maximum Price Coffee", "99999999999999999.99", 2);
+        String secondCoffee = createCoffee("Additional Price Coffee", "0.01", 2);
+        long firstId = idFromLocation(firstCoffee);
+        long secondId = idFromLocation(secondCoffee);
+
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("items", List.of(
+                                Map.of("coffeeId", firstId, "quantity", 1),
+                                Map.of("coffeeId", secondId, "quantity", 1)
+                        )))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ORDER_TOTAL_TOO_LARGE"));
+
+        mockMvc.perform(get(firstCoffee))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableQuantity").value(2));
+        mockMvc.perform(get(secondCoffee))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableQuantity").value(2));
+    }
+
+    @Test
+    void shouldKeepOrderPlacedWhenRestockingWouldOverflowInventory() throws Exception {
+        String coffee = createCoffee("Restock Boundary Coffee", "1.00", 1);
+        long coffeeId = idFromLocation(coffee);
+        String order = placeOrder(objectMapper.writeValueAsString(Map.of(
+                "items", List.of(Map.of("coffeeId", coffeeId, "quantity", 1))
+        )));
+
+        mockMvc.perform(put(coffee)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Restock Boundary Coffee", "origin", "Brazil", "roastLevel", "DARK",
+                                "unitPrice", new BigDecimal("1.00"), "availableQuantity", Integer.MAX_VALUE
+                        ))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post(order + "/cancel"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVENTORY_LIMIT_EXCEEDED"));
+        mockMvc.perform(get(order))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PLACED"));
+        mockMvc.perform(get(coffee))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableQuantity").value(Integer.MAX_VALUE));
+    }
+
+    @Test
     void shouldPreserveOrderSnapshotWhenCatalogEntryChanges() throws Exception {
         String orderPath = placeOrder("""
                 {"items":[{"coffeeId":1,"quantity":2}]}
@@ -133,5 +221,21 @@ class OrderControllerTest {
                 .andExpect(status().isCreated())
                 .andReturn();
         return result.getResponse().getHeader("Location");
+    }
+
+    private String createCoffee(String name, String unitPrice, int availableQuantity) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/coffees")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", name, "origin", "Brazil", "roastLevel", "DARK",
+                                "unitPrice", new BigDecimal(unitPrice), "availableQuantity", availableQuantity
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return result.getResponse().getHeader("Location");
+    }
+
+    private long idFromLocation(String location) {
+        return Long.parseLong(location.substring(location.lastIndexOf('/') + 1));
     }
 }

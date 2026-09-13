@@ -28,6 +28,8 @@ public class CoffeeOrder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private static final BigDecimal MAX_TOTAL = new BigDecimal("99999999999999999.99");
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private OrderStatus status;
@@ -57,8 +59,18 @@ public class CoffeeOrder {
     }
 
     public void addItem(OrderItem item) {
+        BigDecimal nextTotal = totalAmount.add(item.getLineTotal());
+        if (nextTotal.compareTo(MAX_TOTAL) > 0) {
+            throw new AmountLimitExceededException();
+        }
         items.add(item);
-        totalAmount = totalAmount.add(item.getLineTotal());
+        totalAmount = nextTotal;
+    }
+
+    public static class AmountLimitExceededException extends RuntimeException {
+        public AmountLimitExceededException() {
+            super("Order total exceeds the supported maximum of 99999999999999999.99 USD.");
+        }
     }
 
     public void cancel() {

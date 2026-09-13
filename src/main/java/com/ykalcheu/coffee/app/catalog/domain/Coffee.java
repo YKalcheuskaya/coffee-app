@@ -89,7 +89,17 @@ public class Coffee {
     }
 
     public void increaseInventory(int quantity) {
-        availableQuantity += quantity;
+        try {
+            availableQuantity = Math.addExact(availableQuantity, quantity);
+        } catch (ArithmeticException exception) {
+            throw new InventoryLimitExceededException();
+        }
+    }
+
+    public static class InventoryLimitExceededException extends RuntimeException {
+        public InventoryLimitExceededException() {
+            super("Restoring this order would exceed the inventory limit.");
+        }
     }
 
     private void apply(String name, String origin, String roastLevel, BigDecimal unitPrice, int availableQuantity) {

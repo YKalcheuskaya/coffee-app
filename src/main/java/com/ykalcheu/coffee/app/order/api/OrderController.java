@@ -39,7 +39,7 @@ public class OrderController {
     @Operation(summary = "Place an order")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Order placed"),
-            @ApiResponse(responseCode = "400", description = "Request validation failed", content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request or order total exceeds the supported maximum", content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "Coffee does not exist", content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "409", description = "Duplicate line or insufficient inventory", content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
@@ -67,7 +67,7 @@ public class OrderController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Order cancelled"),
             @ApiResponse(responseCode = "404", description = "Order does not exist", content = @Content(schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "409", description = "Order is already cancelled", content = @Content(schema = @Schema(implementation = ApiError.class)))
+            @ApiResponse(responseCode = "409", description = "Order is already cancelled or restocking exceeds the inventory limit", content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
     public OrderResponse cancelOrder(@PathVariable long orderId) {
         return orderService.cancel(orderId);

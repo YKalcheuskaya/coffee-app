@@ -94,6 +94,28 @@ class CoffeeControllerTest {
     }
 
     @Test
+    void shouldUseApiErrorContractForFrameworkRequestFailures() throws Exception {
+        mockMvc.perform(get("/api/coffees/not-a-number"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("coffeeId"));
+
+        mockMvc.perform(post("/api/coffees")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("coffee"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_MEDIA_TYPE"));
+
+        mockMvc.perform(delete("/api/coffees"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"));
+
+        mockMvc.perform(get("/api/not-a-resource"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
     void shouldExposeGeneratedOpenApiAndSwaggerUi() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
