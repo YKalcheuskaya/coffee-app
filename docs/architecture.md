@@ -4,7 +4,8 @@ Coffee App is a layered Spring Boot API. The project is organized by feature so 
 
 ```mermaid
 flowchart LR
-    Client[API client] --> Controller[REST controllers]
+    Browser[Customer UI / Playwright] --> Controller[REST controllers]
+    Client[API client] --> Controller
     Controller --> Service[Application services]
     Service --> Domain[Domain entities and rules]
     Service --> Repository[Spring Data repositories]
@@ -24,9 +25,9 @@ flowchart LR
 | `catalog.domain` | Coffee state, normalization, and domain exceptions. |
 | `catalog.persistence` | Catalog repository queries and locks. |
 | `order.api` | Order request and response models plus HTTP endpoints. |
-| `order.application` | Transactional ordering and cancellation use cases. |
-| `order.domain` | Order aggregate, item snapshots, lifecycle state, and exceptions. |
-| `order.persistence` | Order retrieval and active-order queries. |
+| `order.application` | Transactional ordering, idempotent submission, and cancellation use cases. |
+| `order.domain` | Order aggregate, idempotency record, item snapshots, lifecycle state, and exceptions. |
+| `order.persistence` | Order retrieval, idempotency, and active-order queries. |
 | `shared.error` | One consistent public error format. |
 | `shared.openapi` / `shared.time` | Application-wide API metadata and time dependency. |
 
@@ -42,19 +43,28 @@ sequenceDiagram
     participant R as Coffee repository
     participant D as PostgreSQL
 
-    C->>O: POST /api/orders
-    O->>S: place(request)
+    C->>O: POST /api/orders + Idempotency-Key
+    O->>S: place(key, request)
+    S->>D: claim key and lock idempotency record
+    alt matching completed key
+        S-->>O: original order
+        O-->>C: 200 OK + Idempotent-Replay: true
+    else new key
     S->>R: lock coffee rows by ascending ID
     R->>D: SELECT ... FOR UPDATE
     alt all items exist and inventory is sufficient
         S->>S: decrement inventory and create price/name snapshots
-        S->>D: persist order and items
+        S->>D: persist order, items, and request fingerprint atomically
         S-->>O: placed order
         O-->>C: 201 Created
     else invalid or insufficient item
         S-->>O: domain exception
         O-->>C: structured 4xx error
         Note over S,D: Transaction rolls back; inventory is unchanged
+    end
+    else same key, different request
+        S-->>O: idempotency-key-reused exception
+        O-->>C: 409 IDEMPOTENCY_KEY_REUSED
     end
 ```
 
@@ -87,7 +97,15 @@ erDiagram
         integer quantity
         decimal line_total
     }
+    IDEMPOTENCY_RECORD {
+        bigint id PK
+        varchar idempotency_key UK
+        varchar request_fingerprint
+        bigint order_id FK
+        timestamp created_at
+    }
     CUSTOMER_ORDER ||--|{ ORDER_ITEM : contains
+    CUSTOMER_ORDER ||--|| IDEMPOTENCY_RECORD : completed_by
 ```
 
 Flyway owns schema evolution. JPA validates the resulting schema rather than generating it. Production configuration takes database connection values from `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`; the test profile uses an isolated in-memory H2 database with the documented H2 `SA` account only for tests.
