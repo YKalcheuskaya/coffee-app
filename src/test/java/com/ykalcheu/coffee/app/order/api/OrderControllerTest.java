@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -54,8 +55,62 @@ class OrderControllerTest {
     }
 
     @Test
+    void shouldReplayTheSameOrderWithoutDecrementingInventoryTwice() throws Exception {
+        String request = """
+                {"items":[{"coffeeId":1,"quantity":2}]}
+                """;
+
+        mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", "replay-key")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", "replay-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Idempotent-Replay", "true"))
+                .andExpect(jsonPath("$.id").value(1));
+        mockMvc.perform(get("/api/coffees/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableQuantity").value(22));
+    }
+
+    @Test
+    void shouldRejectAChangedRequestWithAnExistingIdempotencyKey() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", "reused-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"coffeeId\":1,\"quantity\":1}]}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", "reused-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"coffeeId\":1,\"quantity\":2}]}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("IDEMPOTENCY_KEY_REUSED"));
+    }
+
+    @Test
+    void shouldRequireANonBlankIdempotencyKey() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"coffeeId\":1,\"quantity\":1}]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_IDEMPOTENCY_KEY"));
+        mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", " ")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"coffeeId\":1,\"quantity\":1}]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_IDEMPOTENCY_KEY"));
+    }
+
+    @Test
     void shouldRejectInvalidOrderWithoutChangingInventory() throws Exception {
         mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", "invalid-order")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"items":[{"coffeeId":2,"quantity":1},{"coffeeId":999,"quantity":1}]}
@@ -64,6 +119,7 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.code").value("COFFEE_NOT_FOUND"));
 
         mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", "insufficient-order")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"items":[{"coffeeId":2,"quantity":19}]}
@@ -79,6 +135,7 @@ class OrderControllerTest {
     @Test
     void shouldRejectDuplicateCoffeeLine() throws Exception {
         mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", "duplicate-line")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"items":[{"coffeeId":1,"quantity":1},{"coffeeId":1,"quantity":2}]}
@@ -106,6 +163,7 @@ class OrderControllerTest {
 
         for (String request : invalidRequests) {
             mockMvc.perform(post("/api/orders")
+                            .header("Idempotency-Key", "invalid-payload")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(request))
                     .andExpect(status().isBadRequest())
@@ -125,6 +183,7 @@ class OrderControllerTest {
         long secondId = idFromLocation(secondCoffee);
 
         mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", "too-large-order")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("items", List.of(
                                 Map.of("coffeeId", firstId, "quantity", 1),
@@ -216,6 +275,7 @@ class OrderControllerTest {
 
     private String placeOrder(String content) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/orders")
+                        .header("Idempotency-Key", "placed-order-" + System.nanoTime())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(content))
                 .andExpect(status().isCreated())

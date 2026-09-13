@@ -19,6 +19,7 @@ flowchart BT
 | HTTP integration | Application through `MockMvc` | Catalog CRUD, order placement, rollback, snapshots, cancel, delete guard | In-memory H2 test profile |
 | Black-box HTTP | Running embedded application exercised with REST Assured | Create → update → order → retrieve → cancel → delete | In-memory H2 test profile |
 | Acceptance | Running server plus real PostgreSQL | Flyway migration, concurrency, and database-constraint behavior through HTTP | Testcontainers / Docker |
+| Browser E2E | Playwright against a running Spring Boot test profile | Catalog → cart → order → lookup → cancellation | Chromium and isolated H2 |
 
 ## Primary scenarios
 
@@ -33,6 +34,8 @@ flowchart BT
 - A PostgreSQL-only concurrent-cancellation check: two overlapping requests produce one success and one `ORDER_ALREADY_CANCELLED` conflict, with stock restored exactly once.
 - A PostgreSQL-only concurrent normalized-name conflict check: one insert wins and the competing API request returns `COFFEE_NAME_ALREADY_EXISTS`.
 - Invalid request bodies, fractional or coerced integer values, order-total precision boundaries, inventory-restocking overflow, and framework request errors return structured API errors without partial state changes.
+- A required `Idempotency-Key` produces one order and one inventory decrement; a matching replay returns the original order and a changed request receives `IDEMPOTENCY_KEY_REUSED`.
+- The browser regression exercises the customer-visible catalog, cart, checkout, order lookup, and cancellation journey.
 
 ## Risk-to-test map
 

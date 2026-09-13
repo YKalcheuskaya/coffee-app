@@ -7,6 +7,8 @@ import com.ykalcheu.coffee.app.order.domain.DuplicateCoffeeItemException;
 import com.ykalcheu.coffee.app.order.domain.InsufficientInventoryException;
 import com.ykalcheu.coffee.app.order.domain.OrderAlreadyCancelledException;
 import com.ykalcheu.coffee.app.order.domain.OrderNotFoundException;
+import com.ykalcheu.coffee.app.order.domain.InvalidIdempotencyKeyException;
+import com.ykalcheu.coffee.app.order.domain.IdempotencyKeyReusedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -84,6 +86,18 @@ class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     ApiError handleOrderAlreadyCancelled(OrderAlreadyCancelledException exception) {
         return ApiError.of("ORDER_ALREADY_CANCELLED", exception.getMessage(), Map.of("orderId", exception.getOrderId()));
+    }
+
+    @ExceptionHandler(InvalidIdempotencyKeyException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ApiError handleInvalidIdempotencyKey(InvalidIdempotencyKeyException exception) {
+        return ApiError.of("INVALID_IDEMPOTENCY_KEY", exception.getMessage(), null);
+    }
+
+    @ExceptionHandler(IdempotencyKeyReusedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    ApiError handleIdempotencyKeyReused(IdempotencyKeyReusedException exception) {
+        return ApiError.of("IDEMPOTENCY_KEY_REUSED", exception.getMessage(), null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

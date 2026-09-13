@@ -7,6 +7,8 @@ Transactional Coffee Ordering API built with Java 17 and Spring Boot.
 - Java 17, Spring Boot, Spring Data JPA, Bean Validation, Flyway, PostgreSQL, and H2 for isolated tests.
 - Full CRUD for the live coffee catalog.
 - Atomic order placement, deterministic pessimistic inventory locking, immutable item snapshots, and one-time cancellation restocking.
+- Idempotent order submission with a durable request fingerprint and conflict detection.
+- A small browser client plus a Playwright end-to-end customer workflow.
 - Generated OpenAPI/Swagger, a layered test pyramid, Docker Compose, and Java 17 CI verification.
 
 ## Core workflow
@@ -18,7 +20,7 @@ Transactional Coffee Ordering API built with Java 17 and Spring Boot.
 
 ## Scope and behavior
 
-Coffee catalog CRUD is available: create, list, retrieve, replace, and delete catalog items. Orders can be placed, retrieved, and cancelled. Order placement locks inventory rows in a consistent order, writes immutable item snapshots, and rolls back the entire operation when a requested item is invalid or unavailable. Cancelling a placed order restores inventory once; coffee with an active order cannot be deleted.
+Coffee catalog CRUD is available: create, list, retrieve, replace, and delete catalog items. Orders can be placed, retrieved, and cancelled. `POST /api/orders` requires an `Idempotency-Key` header. Repeating the same canonical item list with that key returns `200 OK`, `Idempotent-Replay: true`, and the original order without another inventory decrement. Reusing a key for a different list returns `409 IDEMPOTENCY_KEY_REUSED`. Until authentication exists, keys are global to this single application instance; a future identity feature must scope them to the authenticated customer.
 
 Flyway manages PostgreSQL schema creation and seed data. Generated OpenAPI and Swagger UI describe the running endpoints. The repository includes Docker Compose, Java 17 CI verification, and a layered test suite that exercises both H2 and PostgreSQL through Testcontainers.
 
@@ -40,6 +42,20 @@ mvn spring-boot:run
 ```
 
 The application starts on `http://localhost:8080` by default. `.env.example` is a placeholder-only template; Spring Boot does not load `.env` files automatically. When the application is running, open [Swagger UI](http://localhost:8080/swagger-ui/index.html) or the generated [OpenAPI document](http://localhost:8080/v3/api-docs).
+
+The customer UI is served from [http://localhost:8080/](http://localhost:8080/). It deliberately covers the customer workflow only; catalog administration remains available through the documented API.
+
+## Browser automation
+
+Install the JavaScript test dependency and Chromium once, then run the compact end-to-end regression:
+
+```bash
+npm install
+npx playwright install chromium
+npm run test:ui
+```
+
+Playwright starts the Spring Boot application with its isolated H2 UI profile, adds a seeded coffee to the cart, places an idempotent order, finds it, and cancels it. Use Java 17 on `PATH` when running the command.
 
 ## Run with Docker Compose
 

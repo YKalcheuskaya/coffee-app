@@ -9,7 +9,9 @@ import com.ykalcheu.coffee.app.order.api.PlaceOrderRequest;
 import com.ykalcheu.coffee.app.order.domain.CoffeeOrder;
 import com.ykalcheu.coffee.app.order.domain.DuplicateCoffeeItemException;
 import com.ykalcheu.coffee.app.order.domain.InsufficientInventoryException;
+import com.ykalcheu.coffee.app.order.domain.IdempotencyRecord;
 import com.ykalcheu.coffee.app.order.domain.OrderAlreadyCancelledException;
+import com.ykalcheu.coffee.app.order.persistence.IdempotencyRecordRepository;
 import com.ykalcheu.coffee.app.order.persistence.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,9 @@ class OrderServiceTest {
     @Mock
     private OrderRepository orderRepository;
 
+    @Mock
+    private IdempotencyRecordRepository idempotencyRecordRepository;
+
     @Captor
     private ArgumentCaptor<CoffeeOrder> orderCaptor;
 
@@ -53,7 +58,12 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
-        orderService = new OrderService(coffeeRepository, orderRepository, FIXED_CLOCK);
+        orderService = new OrderService(coffeeRepository, orderRepository, idempotencyRecordRepository, FIXED_CLOCK);
+        org.mockito.Mockito.lenient().when(idempotencyRecordRepository.claimIfAbsent(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(1);
+        org.mockito.Mockito.lenient().when(idempotencyRecordRepository.findByKeyForUpdate(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(invocation -> Optional.of(IdempotencyRecord.claim(
+                        invocation.getArgument(0), "unused", Instant.now(FIXED_CLOCK))));
     }
 
     @Test
@@ -62,7 +72,7 @@ class OrderServiceTest {
         when(coffeeRepository.findAllByIdInForUpdate(anyCollection())).thenReturn(List.of(espresso));
         when(orderRepository.save(any(CoffeeOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        OrderResponse response = orderService.place(new PlaceOrderRequest(List.of(new OrderItemRequest(1L, 2))));
+        OrderResponse response = orderService.place("test-key", new PlaceOrderRequest(List.of(new OrderItemRequest(1L, 2)))).order();
 
         assertThat(response.status().name()).isEqualTo("PLACED");
         assertThat(response.createdAt()).isEqualTo(Instant.parse("2026-09-09T18:00:00Z"));
@@ -84,7 +94,7 @@ class OrderServiceTest {
                 new OrderItemRequest(1L, 1), new OrderItemRequest(1L, 2)
         ));
 
-        assertThatThrownBy(() -> orderService.place(request))
+        assertThatThrownBy(() -> orderService.place("test-key", request))
                 .isInstanceOf(DuplicateCoffeeItemException.class);
 
         verify(coffeeRepository, never()).findAllByIdInForUpdate(anyCollection());
@@ -95,7 +105,7 @@ class OrderServiceTest {
     void shouldRejectMissingCoffeeBeforeCreatingOrder() {
         when(coffeeRepository.findAllByIdInForUpdate(anyCollection())).thenReturn(List.of());
 
-        assertThatThrownBy(() -> orderService.place(new PlaceOrderRequest(List.of(new OrderItemRequest(99L, 1)))))
+        assertThatThrownBy(() -> orderService.place("test-key", new PlaceOrderRequest(List.of(new OrderItemRequest(99L, 1)))))
                 .isInstanceOf(CoffeeNotFoundException.class);
 
         verify(orderRepository, never()).save(any(CoffeeOrder.class));
@@ -106,7 +116,7 @@ class OrderServiceTest {
         Coffee espresso = coffee(1L, "Espresso", "3.50", 1);
         when(coffeeRepository.findAllByIdInForUpdate(anyCollection())).thenReturn(List.of(espresso));
 
-        assertThatThrownBy(() -> orderService.place(new PlaceOrderRequest(List.of(new OrderItemRequest(1L, 2)))))
+        assertThatThrownBy(() -> orderService.place("test-key", new PlaceOrderRequest(List.of(new OrderItemRequest(1L, 2)))))
                 .isInstanceOf(InsufficientInventoryException.class);
 
         assertThat(espresso.getAvailableQuantity()).isEqualTo(1);

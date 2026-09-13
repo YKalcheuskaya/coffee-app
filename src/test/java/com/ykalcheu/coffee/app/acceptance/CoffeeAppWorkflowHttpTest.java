@@ -64,6 +64,7 @@ class CoffeeAppWorkflowHttpTest {
 
         long orderId = given()
                 .contentType(ContentType.JSON)
+                .header("Idempotency-Key", "workflow-order")
                 .body(Map.of("items", List.of(Map.of("coffeeId", coffeeId, "quantity", 2))))
                 .when()
                 .post("/api/orders")

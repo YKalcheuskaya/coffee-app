@@ -10,7 +10,7 @@ timeline
             : Flyway, OpenAPI, layered tests
     Next : Authentication and role-based authorization
          : Audit events and observability
-    Later : Payment integration and idempotency keys
+    Later : Payment integration
           : Inventory reservations and fulfillment workflow
     Scale : Asynchronous events
           : Reporting read models and operational dashboards
@@ -19,7 +19,7 @@ timeline
 ## Functional direction
 
 - Add customer identities, staff roles, and authorization around catalog administration.
-- Support idempotent order submissions and a payment authorization workflow.
+- Scope idempotency records to authenticated customers once customer identities exist; the current bounded API uses global keys.
 - Introduce an inventory reservation or fulfillment state machine when order preparation becomes asynchronous.
 - Add search, filtering, and pagination as the catalog grows.
 

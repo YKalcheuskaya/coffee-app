@@ -106,6 +106,7 @@ class PostgresCoffeeAppAcceptanceTest {
                         "roastLevel", "DARK", "unitPrice", 4, "availableQuantity", 1))
                 .post("/api/coffees").then().statusCode(201).extract().jsonPath().getLong("id");
         long orderId = given().port(port).contentType(ContentType.JSON)
+                .header("Idempotency-Key", "concurrent-cancellation-order")
                 .body(Map.of("items", List.of(Map.of("coffeeId", coffeeId, "quantity", 1))))
                 .post("/api/orders").then().statusCode(201).extract().jsonPath().getLong("id");
 
@@ -223,6 +224,7 @@ class PostgresCoffeeAppAcceptanceTest {
         long itemsBefore = countRows("order_item");
 
         given().port(port).contentType(ContentType.JSON)
+                .header("Idempotency-Key", "rollback-order")
                 .body(Map.of("items", List.of(
                         Map.of("coffeeId", availableCoffeeId, "quantity", 1),
                         Map.of("coffeeId", limitedCoffeeId, "quantity", 2)
@@ -243,6 +245,7 @@ class PostgresCoffeeAppAcceptanceTest {
                         "roastLevel", "LIGHT", "unitPrice", 4.25, "availableQuantity", 1))
                 .post("/api/coffees").then().statusCode(201).extract().jsonPath().getLong("id");
         long orderId = given().port(port).contentType(ContentType.JSON)
+                .header("Idempotency-Key", "historical-order")
                 .body(Map.of("items", List.of(Map.of("coffeeId", coffeeId, "quantity", 1))))
                 .post("/api/orders").then().statusCode(201).extract().jsonPath().getLong("id");
 
@@ -345,6 +348,7 @@ class PostgresCoffeeAppAcceptanceTest {
         return given()
                 .port(port)
                 .contentType(ContentType.JSON)
+                .header("Idempotency-Key", "concurrent-order-" + java.util.UUID.randomUUID())
                 .body(Map.of("items", List.of(Map.of("coffeeId", coffeeId, "quantity", 1))))
                 .when()
                 .post("/api/orders")

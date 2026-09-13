@@ -11,3 +11,8 @@ out/
 .idea/
 *.iml
 .DS_Store
+
+# Node and Playwright output
+node_modules/
+playwright-report/
+test-results/

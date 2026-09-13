@@ -1,6 +1,7 @@
 package com.ykalcheu.coffee.app.order.api;
 
 import com.ykalcheu.coffee.app.order.application.OrderService;
+import com.ykalcheu.coffee.app.order.application.OrderPlacementResult;
 import com.ykalcheu.coffee.app.shared.error.ApiError;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -39,12 +41,19 @@ public class OrderController {
     @Operation(summary = "Place an order")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Order placed"),
+            @ApiResponse(responseCode = "200", description = "Idempotent replay of a previously placed order"),
             @ApiResponse(responseCode = "400", description = "Invalid request or order total exceeds the supported maximum", content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "Coffee does not exist", content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "409", description = "Duplicate line or insufficient inventory", content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
-    public ResponseEntity<OrderResponse> placeOrder(@Valid @RequestBody PlaceOrderRequest request) {
-        OrderResponse order = orderService.place(request);
+    public ResponseEntity<OrderResponse> placeOrder(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody PlaceOrderRequest request) {
+        OrderPlacementResult result = orderService.place(idempotencyKey, request);
+        OrderResponse order = result.order();
+        if (result.replayed()) {
+            return ResponseEntity.ok().header("Idempotent-Replay", "true").body(order);
+        }
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{orderId}")
                 .buildAndExpand(order.id())

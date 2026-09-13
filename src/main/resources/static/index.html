@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Coffee App</title>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<main>
+    <header><p class="eyebrow">Coffee App</p><h1>Order coffee with confidence.</h1><p>Browse the live catalog, build an order, and manage its lifecycle.</p></header>
+    <p id="message" role="status" aria-live="polite"></p>
+    <section aria-labelledby="catalog-title"><h2 id="catalog-title">Catalog</h2><div id="catalog" class="catalog" aria-live="polite"></div></section>
+    <section aria-labelledby="cart-title"><h2 id="cart-title">Your order</h2><div id="cart" data-testid="cart-empty">Your cart is empty.</div><button id="checkout" type="button" disabled>Place order</button></section>
+    <section aria-labelledby="order-title"><h2 id="order-title">Find an order</h2><label for="order-id">Order ID</label><div class="row"><input id="order-id" type="number" min="1"><button id="find-order" type="button">Find order</button></div><div id="order-details"></div></section>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>
