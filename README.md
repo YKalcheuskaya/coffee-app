@@ -45,6 +45,14 @@ The application starts on `http://localhost:8080` by default. `.env.example` is 
 
 The customer UI is served from [http://localhost:8080/](http://localhost:8080/). It deliberately covers the customer workflow only; catalog administration remains available through the documented API.
 
+To explore the customer UI without configuring PostgreSQL, start the isolated local H2 profile:
+
+```bash
+mvn -Dspring-boot.run.profiles=ui spring-boot:run
+```
+
+Then open [http://localhost:8080/](http://localhost:8080/). The `ui` profile is local demonstration and browser-test infrastructure; it is not a production configuration.
+
 ## Browser automation
 
 Install the JavaScript test dependency and Chromium once, then run the compact end-to-end regression:
