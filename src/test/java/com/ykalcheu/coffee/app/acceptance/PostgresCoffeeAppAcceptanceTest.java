@@ -209,6 +209,65 @@ class PostgresCoffeeAppAcceptanceTest {
         }
     }
 
+    @Test
+    void shouldRollbackEveryInventoryChangeWhenOneOrderLineIsInsufficient() throws Exception {
+        long availableCoffeeId = given().port(port).contentType(ContentType.JSON)
+                .body(Map.of("name", "Rollback Available Coffee", "origin", "Brazil",
+                        "roastLevel", "DARK", "unitPrice", 4, "availableQuantity", 5))
+                .post("/api/coffees").then().statusCode(201).extract().jsonPath().getLong("id");
+        long limitedCoffeeId = given().port(port).contentType(ContentType.JSON)
+                .body(Map.of("name", "Rollback Limited Coffee", "origin", "Brazil",
+                        "roastLevel", "DARK", "unitPrice", 4, "availableQuantity", 1))
+                .post("/api/coffees").then().statusCode(201).extract().jsonPath().getLong("id");
+        long ordersBefore = countRows("customer_order");
+        long itemsBefore = countRows("order_item");
+
+        given().port(port).contentType(ContentType.JSON)
+                .body(Map.of("items", List.of(
+                        Map.of("coffeeId", availableCoffeeId, "quantity", 1),
+                        Map.of("coffeeId", limitedCoffeeId, "quantity", 2)
+                )))
+                .post("/api/orders")
+                .then().statusCode(409).body("code", org.hamcrest.Matchers.equalTo("INSUFFICIENT_INVENTORY"));
+
+        assertThat(stock(availableCoffeeId)).as("inventory changed before the failure is rolled back").isEqualTo(5);
+        assertThat(stock(limitedCoffeeId)).isEqualTo(1);
+        assertThat(countRows("customer_order")).isEqualTo(ordersBefore);
+        assertThat(countRows("order_item")).isEqualTo(itemsBefore);
+    }
+
+    @Test
+    void shouldKeepCancelledOrderSnapshotsAfterCatalogDeletion() throws Exception {
+        long coffeeId = given().port(port).contentType(ContentType.JSON)
+                .body(Map.of("name", "Historical Snapshot Coffee", "origin", "Ethiopia",
+                        "roastLevel", "LIGHT", "unitPrice", 4.25, "availableQuantity", 1))
+                .post("/api/coffees").then().statusCode(201).extract().jsonPath().getLong("id");
+        long orderId = given().port(port).contentType(ContentType.JSON)
+                .body(Map.of("items", List.of(Map.of("coffeeId", coffeeId, "quantity", 1))))
+                .post("/api/orders").then().statusCode(201).extract().jsonPath().getLong("id");
+
+        given().port(port).post("/api/orders/{orderId}/cancel", orderId)
+                .then().statusCode(200).body("status", org.hamcrest.Matchers.equalTo("CANCELLED"));
+        given().port(port).delete("/api/coffees/{coffeeId}", coffeeId).then().statusCode(204);
+        given().port(port).get("/api/orders/{orderId}", orderId)
+                .then().statusCode(200)
+                .body("status", org.hamcrest.Matchers.equalTo("CANCELLED"))
+                .body("items[0].coffeeId", org.hamcrest.Matchers.equalTo((int) coffeeId))
+                .body("items[0].coffeeName", org.hamcrest.Matchers.equalTo("Historical Snapshot Coffee"))
+                .body("items[0].unitPrice", org.hamcrest.Matchers.equalTo(4.25f));
+
+        try (Connection observer = dataSource.getConnection();
+             var statement = observer.prepareStatement(
+                     "select count(*) from order_item where order_id = ? and coffee_id = ?")) {
+            statement.setLong(1, orderId);
+            statement.setLong(2, coffeeId);
+            try (var rows = statement.executeQuery()) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(1);
+            }
+        }
+    }
+
     private Response cancelOrder(long orderId) {
         return given().port(port)
                 .config(io.restassured.RestAssured.config().httpClient(
@@ -260,6 +319,26 @@ class PostgresCoffeeAppAcceptanceTest {
             }
         }
         assertThat(waiting).as("competing create request must reach the unique-index lock").isEqualTo(1);
+    }
+
+    private long countRows(String table) throws Exception {
+        try (Connection observer = dataSource.getConnection();
+             var statement = observer.createStatement();
+             var rows = statement.executeQuery("select count(*) from " + table)) {
+            assertThat(rows.next()).isTrue();
+            return rows.getLong(1);
+        }
+    }
+
+    private int stock(long coffeeId) throws Exception {
+        try (Connection observer = dataSource.getConnection();
+             var statement = observer.prepareStatement("select available_quantity from coffee where id = ?")) {
+            statement.setLong(1, coffeeId);
+            try (var rows = statement.executeQuery()) {
+                assertThat(rows.next()).isTrue();
+                return rows.getInt(1);
+            }
+        }
     }
 
     private int placeOneItemOrder(long coffeeId) {
