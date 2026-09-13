@@ -34,6 +34,18 @@ flowchart BT
 - A PostgreSQL-only concurrent normalized-name conflict check: one insert wins and the competing API request returns `COFFEE_NAME_ALREADY_EXISTS`.
 - Invalid request bodies, fractional or coerced integer values, order-total precision boundaries, inventory-restocking overflow, and framework request errors return structured API errors without partial state changes.
 
+## Risk-to-test map
+
+| Business rule | Failure risk | Automated evidence | Independent oracle |
+| --- | --- | --- | --- |
+| An order changes inventory atomically. | A later invalid line leaves an earlier decrement persisted. | PostgreSQL acceptance test submits an available line followed by an insufficient one. | JDBC checks both stock values plus `customer_order` and `order_item` row counts. |
+| An order can be cancelled once. | Concurrent requests restore the same inventory twice. | PostgreSQL acceptance test holds the order lock and releases two HTTP cancellation requests together. | JDBC checks final stock and status; one response must be `ORDER_ALREADY_CANCELLED`. |
+| A catalog name is unique after normalization. | A race reaches the database and becomes a 500 error. | PostgreSQL acceptance test holds an uncommitted matching insert while an API create request waits. | JDBC confirms one normalized name; the API returns `COFFEE_NAME_ALREADY_EXISTS`. |
+| Historical order data remains readable after catalog cleanup. | Deleting a cancelled catalog item destroys order history. | PostgreSQL acceptance test places, cancels, deletes, and retrieves an order. | JDBC confirms the historical order-item row remains. |
+| Client input is explicit and bounded. | Null values, coercion, or numeric overflow become a 500 or partial write. | MVC tests cover malformed payloads, null lines, invalid integers, precision boundaries, and restocking overflow. | HTTP error code and follow-up resource reads confirm a controlled response and unchanged state. |
+
+The test count is not a release criterion by itself. Each row identifies the business rule, the failure mode, the automated scenario, and the observable result that distinguishes a valid outcome from a superficially passing response.
+
 ## Running tests
 
 ```bash
