@@ -28,6 +28,8 @@ Flyway manages PostgreSQL schema creation and seed data. Generated OpenAPI and S
 
 - Java 17
 - Maven 3.6.3 or later
+- Docker with its engine running (required for the complete `mvn verify` suite)
+- Node.js 20 or later and npm (required only for the Playwright browser tests)
 
 ## Run and verify
 
@@ -35,7 +37,25 @@ Flyway manages PostgreSQL schema creation and seed data. Generated OpenAPI and S
 mvn verify
 ```
 
-`mvn test` runs the fast H2-backed suite. `mvn verify` runs the complete suite, including required PostgreSQL/Testcontainers acceptance tests, and writes a JaCoCo HTML report to `target/site/jacoco/index.html`; it requires Docker. To run the application directly against PostgreSQL, export `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` using values derived from `.env.example`, then run:
+`mvn test` runs the fast H2-backed suite. `mvn verify` runs the complete suite, including required PostgreSQL/Testcontainers acceptance tests, and writes a JaCoCo HTML report to `target/site/jacoco/index.html`.
+
+### Docker/Testcontainers preflight
+
+Before running `mvn verify`, make sure Docker is installed and its engine is running. Verify that the Docker client can reach the engine:
+
+```bash
+docker info
+```
+
+The output must include a `Server` section without a connection error. If it does not, start Docker Desktop (or the Docker service on your platform), wait until the engine is ready, and run the command again. Then rerun the complete suite:
+
+```bash
+mvn clean verify
+```
+
+If `PostgresCoffeeAppAcceptanceTest` reports `Could not find a valid Docker environment`, Testcontainers could not start its temporary PostgreSQL container. This is a local Docker configuration issue; the PostgreSQL acceptance test is intentionally required and should not be disabled.
+
+To run the application directly against PostgreSQL, export `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` using values derived from `.env.example`, then run:
 
 ```bash
 mvn spring-boot:run
@@ -58,12 +78,12 @@ Then open [http://localhost:8080/](http://localhost:8080/). The `ui` profile is 
 Install the JavaScript test dependency and Chromium once, then run the compact end-to-end regression:
 
 ```bash
-npm install
+npm ci
 npx playwright install chromium
 npm run test:ui
 ```
 
-Playwright starts the Spring Boot application with its isolated H2 UI profile, adds a seeded coffee to the cart, places an idempotent order, finds it, and cancels it. Use Java 17 on `PATH` when running the command.
+Playwright starts the Spring Boot application with its isolated H2 UI profile. It verifies the customer journey from catalog through cart, checkout, a manual order lookup after a page reload, and cancellation; it also verifies client-side quantity validation. Use Java 17 on `PATH` when running the command.
 
 ## Run with Docker Compose
 
@@ -75,6 +95,15 @@ docker compose up --build
 
 The API is available at `http://localhost:8080`; PostgreSQL data is retained in the local `postgres-data` Docker volume. Stop the stack with `docker compose down`.
 
+PostgreSQL applies `POSTGRES_USERNAME` and `POSTGRES_PASSWORD` only when it initializes an empty volume. If a local `postgres-data` volume already exists, changing the password in `.env` will not change the database user's stored password. Keep the original local password to preserve that data, or, only when the local database is disposable, recreate it with:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+The `-v` command deletes the local PostgreSQL data volume.
+
 ## Try the workflow
 
 After starting the application, retrieve the Flyway-seeded catalog:
@@ -83,7 +112,7 @@ After starting the application, retrieve the Flyway-seeded catalog:
 curl http://localhost:8080/api/coffees
 ```
 
-Use Swagger UI to create or replace a catalog item, place an order, retrieve its immutable snapshots, cancel it, and then delete the now-inactive catalog item. Swagger UI is the canonical endpoint reference; this README intentionally does not duplicate it.
+Open [Swagger UI](http://localhost:8080/swagger-ui/index.html) to create or replace a catalog item, place an order, retrieve its immutable snapshots, cancel it, and then delete the now-inactive catalog item. Swagger UI is the canonical endpoint reference; this README intentionally does not duplicate it.
 
 ## Local-scope boundary
 
