@@ -19,6 +19,12 @@
 
     <properties>
         <java.version>17</java.version>
+        <!-- Compatible security patches; Spring 6.2 applicability is documented separately. -->
+        <jackson-bom.version>2.21.7</jackson-bom.version>
+        <commons-lang3.version>3.18.0</commons-lang3.version>
+        <log4j2.version>2.25.5</log4j2.version>
+        <postgresql.version>42.7.12</postgresql.version>
+        <tomcat.version>10.1.59</tomcat.version>
         <jacoco.version>0.8.15</jacoco.version>
     </properties>
 
@@ -111,6 +117,17 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Testcontainers uses archive handling only for local test infrastructure. -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.26.0</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <plugins>

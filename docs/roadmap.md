@@ -1,6 +1,6 @@
 # Product and Technical Roadmap
 
-This repository is a finished portfolio project with a deliberately bounded local scope. The following items describe plausible next investment steps, not capabilities that are already delivered.
+This portfolio project has a deliberately bounded local scope. PostgreSQL migrations, Testcontainers acceptance tests, Docker Compose, and GitHub Actions verification are already delivered. The following items describe optional future investments.
 
 ```mermaid
 timeline
@@ -32,5 +32,5 @@ timeline
 ## Operational direction
 
 - Add authenticated production profiles, secret management, health checks, structured logs, metrics, and trace correlation.
-- Run database migrations and the PostgreSQL acceptance suite in continuous integration.
+- Extend the existing migration and PostgreSQL acceptance CI only when new behavior requires it.
 - Define database backup, retention, and recovery expectations before treating the service as deployable production software.
